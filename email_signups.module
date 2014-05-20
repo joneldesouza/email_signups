@@ -1,0 +1,125 @@
+<?php
+
+function email_signups_permission() {
+  return array(
+    'access email_signups page' => array(
+      'title' => t('Access email signups page'),
+      'description' => t('Allow users to access email signups page'),
+    ),
+  );
+}
+
+function email_signups_menu() { 	
+  $items['signups'] = array(
+    'title' => 'List of emails',
+    'page callback' => 'page_email_signups',
+		'access arguments' => array('access email_signups page'),
+		'type' => MENU_CALLBACK,
+  );	
+	return $items;
+}
+
+function page_email_signups() {
+  $header = array( 
+    array('data' => t('E-mail')),  
+		array('data' => t('Data')),  
+  );	
+	$sql = db_select('email_signups')
+    ->fields('email_signups', array('email', 'created'));		
+		
+	$result = $sql->execute();	
+
+	foreach ($result as $row) {			
+		$created = gmdate("d/m/Y", $row->created);
+		$rows[] = array($row->email, $created);
+	}
+
+	return theme('table', array('header' => $header, 'rows'=> $rows));
+}
+
+function email_signups_block_info() {
+  $blocks = array();
+  $blocks['email_signups_form'] = array(
+    'info' => t('Email signups form'),
+  ); 
+  return $blocks;
+}
+
+function email_signups_block_view($delta='') {	
+  $block = array(); 
+	switch($delta) {
+		case 'email_signups_form':
+			$block['subject'] = t('Email signups');		
+			$block['content'] = drupal_get_form('email_signups_form');
+		break;
+	}	
+	return $block;
+}
+
+function email_signups_form($form, &$form_state) { 
+	$form['email'] = array(
+      '#type' => 'textfield',
+      '#title' => t('Email'),
+      '#default_value' => '',
+      '#size' => 25,
+      '#maxlength' => 254,
+      '#required' => TRUE,
+  );
+	$form['submit'] = array(
+		'#type' => 'submit',
+		'#value' => t('Submit'),
+		'#ajax' => array(
+			'callback' => 'email_signups_ajax_submit',
+			'wrapper' => 'email-signups-form',
+			'method' => 'replace',
+			'effect' => 'fade',
+		),
+	);
+	return $form;
+}
+
+function email_signups_ajax_submit($form, &$form_state, &$vars) {
+  // validate the form
+  drupal_validate_form('email_signups_form', $form, $form_state);
+  // if there are errors, return the form to display the error messages
+  if (form_get_errors()) {
+    $form_state['rebuild'] = TRUE;
+    return $form;
+  }	
+  // process the form
+	$get_message = drupal_get_messages('status');
+	$message = "<div class=\"messages status\">". $get_message['status'][0] ."</div>";
+	$output = array(
+    '#markup' => $message
+  );	
+  // return the confirmation message
+  return $output;
+}
+
+function email_signups_form_validate($form, &$form_state) {
+	$email = $form_state['values']['email'];	
+	if(valid_email_address($email) == 0) {
+		form_set_error('email', t('Not a valid email address'));
+	}
+	$sql = db_select('email_signups')
+    ->fields('email_signups', array('email'))
+    ->condition('email',$email)
+    ->countQuery()
+    ->execute()
+    ->fetchField();
+  if ($sql >= 1) {
+    form_set_error('email', t('This email address is alredy subscribed to this publication.'));
+  }
+}
+
+function email_signups_form_submit($form, &$form_state) {
+  $sql = db_insert('email_signups')
+    ->fields(array(
+      'email' => $form['email']['#value'],
+      'created' => REQUEST_TIME
+    ))
+    ->execute();
+	$email = $form_state['values']['email'];
+  $margs = array('@email' => $email);
+  drupal_set_message(t('Thank you for subscribing, @email!', $margs));
+}
