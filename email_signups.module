@@ -6,11 +6,15 @@ function email_signups_permission() {
       'title' => t('Access email signups page'),
       'description' => t('Allow users to access email signups page'),
     ),
+		'access email_signups form' => array(
+      'title' => t('Access email signups form'),
+      'description' => t('Allow users to access email signups form'),
+    ),
   );
 }
 
 function email_signups_menu() { 	
-  $items['signups'] = array(
+  $items['admin/content/signups'] = array(
     'title' => 'List of emails',
     'page callback' => 'page_email_signups',
 		'access arguments' => array('access email_signups page'),
@@ -33,8 +37,7 @@ function page_email_signups() {
 		$created = gmdate("d/m/Y", $row->created);
 		$rows[] = array($row->email, $created);
 	}
-
-	return theme('table', array('header' => $header, 'rows'=> $rows));
+  return theme('table', array('header' => $header, 'rows'=> $rows));
 }
 
 function email_signups_block_info() {
@@ -46,14 +49,16 @@ function email_signups_block_info() {
 }
 
 function email_signups_block_view($delta='') {	
-  $block = array(); 
-	switch($delta) {
-		case 'email_signups_form':
-			$block['subject'] = t('Email signups');		
-			$block['content'] = drupal_get_form('email_signups_form');
-		break;
-	}	
-	return $block;
+	if (user_access('access email_signups form')) {
+		$block = array(); 
+		switch($delta) {
+			case 'email_signups_form':
+				$block['subject'] = t('Email signups');		
+				$block['content'] = drupal_get_form('email_signups_form');
+			break;
+		}	
+		return $block;
+	}
 }
 
 function email_signups_form($form, &$form_state) { 
@@ -61,6 +66,9 @@ function email_signups_form($form, &$form_state) {
       '#type' => 'textfield',
       '#title' => t('Email'),
       '#default_value' => '',
+			'#attributes' => array(
+				'placeholder' => t('Insert your Email'),
+			),
       '#size' => 25,
       '#maxlength' => 254,
       '#required' => TRUE,
@@ -108,7 +116,7 @@ function email_signups_form_validate($form, &$form_state) {
     ->execute()
     ->fetchField();
   if ($sql >= 1) {
-    form_set_error('email', t('This email address is alredy subscribed to this publication.'));
+    form_set_error('email', t('This email address is alredy subscribed.'));
   }
 }
 
@@ -119,7 +127,39 @@ function email_signups_form_submit($form, &$form_state) {
       'created' => REQUEST_TIME
     ))
     ->execute();
+
 	$email = $form_state['values']['email'];
-  $margs = array('@email' => $email);
-  drupal_set_message(t('Thank you for subscribing, @email!', $margs));
+	$margs = array('@email' => $email);
+	$from = 'noreplay@domain.com';
+	$body[] = t('<p>Hello,</p><p>	The <strong>@email</strong> signed up to receive our news by email.</p><p>Make your <a href="http://www.tartine.com.br/user">login</a> to the content manager to have full access of <a hreef="http://www.tartine.com.br/admin/content/signups">registered in newsletter</a>.', $margs);
+	$to = 'to@domain.com'; // Set this email address - emails will be sent to this email address!
+	$params = array(
+	'body' => $body,
+	'subject' => t('Joined the newsletter'),
+	);
+	if (drupal_mail('email_signups_form', 'some_mail_key', $to, language_default(), $params, $from, TRUE)){
+		drupal_set_message(t('Thank you for subscribing, @email!', $margs));
+	} else {
+		drupal_set_message(t('There was an error subscribing you. Please try again later'));
+		return drupal_render(drupal_get_form('email_signups_form'));
+	}
+
+	// $email = $form_state['values']['email'];
+  // $margs = array('@email' => $email);
+  // drupal_set_message(t('Thank you for subscribing, @email!', $margs));
+	// return drupal_render(drupal_get_form('email_signups_form'));
+}
+
+function email_signups_form_mail($key, &$message, $params) {
+  $headers = array(
+    'MIME-Version' => '1.0',
+    'Content-Type' => 'text/html; charset=UTF-8;',
+    'Content-Transfer-Encoding' => '8Bit',
+    'X-Mailer' => 'Drupal'
+  );
+  foreach ($headers as $key => $value) {
+    $message['headers'][$key] = $value;
+  }
+  $message['subject'] = $params['subject'];
+  $message['body'] = $params['body'];
 }
