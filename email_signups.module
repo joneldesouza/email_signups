@@ -1,92 +1,98 @@
 <?php
-
+/**
+ * @file
+ * The functions for the Email Signups module.
+ */
+ 
 function email_signups_permission() {
   return array(
     'access email_signups page' => array(
       'title' => t('Access email signups page'),
       'description' => t('Allow users to access email signups page'),
     ),
-		'access email_signups form' => array(
+    'access email_signups form' => array(
       'title' => t('Access email signups form'),
       'description' => t('Allow users to access email signups form'),
     ),
   );
 }
 
-function email_signups_menu() { 	
+function email_signups_menu() {
   $items['admin/content/email_signups'] = array(
-    'title' => t('Mailing'),
+    'title' => 'Mailing',
     'page callback' => 'page_email_signups',
-		'access arguments' => array('access email_signups page'),
-		'type' => MENU_LOCAL_TASK,
+    'access arguments' => array('access email_signups page'),
+    'type' => MENU_LOCAL_TASK,
   );
-	$items['admin/content/email_signups/export'] = array(
-		'title' => t('Export mailing'),
-		'page callback' => 'page_email_signups_export',
-		'access arguments' => array('access email_signups page'),
-		'type' => MENU_CALLBACK,
+  $items['admin/content/email_signups/export'] = array(
+    'title' => 'Export mailing',
+    'page callback' => 'page_email_signups_export',
+    'access arguments' => array('access email_signups page'),
+    'type' => MENU_CALLBACK,
   );
-	return $items;
+  return $items;
 }
 
 function email_signups_menu_local_tasks_alter(&$data, $router_item, $root_path) {
-	if($root_path == 'admin/content/email_signups') {
-		// Add an action linking to node/add to all pages.
-		$data['actions']['output'][] = array(
-			'#theme' => 'menu_local_task',
-			'#link' => array(
-				'title' => t('Export mailing'),
-				'href' => 'admin/content/email_signups/export',
-				'localized_options' => array(
-					'attributes' => array(
-						'title' => t('Export mailing'),
-					),
-				),
-			),
-		);
-	}
+  if ($root_path == 'admin/content/email_signups') {
+    // Add an action linking to node/add to all pages.
+    $data['actions']['output'][] = array(
+      '#theme' => 'menu_local_task',
+      '#link' => array(
+        'title' => t('Export mailing'),
+        'href' => 'admin/content/email_signups/export',
+        'localized_options' => array(
+          'attributes' => array(
+            'title' => t('Export mailing'),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 function page_email_signups() {
-  $header = array( 
-    array('data' => t('Email')),  
-		array('data' => t('Date')),  
-  );	
-	$sql = db_select('email_signups')
+  $header = array(
+    array('data' => t('Email'), 'field' => 'email', 'sort' => 'asc'),
+    array('data' => t('Created'), 'field' => 'created'),
+  );
+  $sql = db_select('email_signups')
     ->fields('email_signups', array('email', 'created'))
-		->orderBy('created', 'DESC');
-		
-	$result = $sql->execute();	
+    // ->orderBy('email', 'DESC')
+    ->extend('TableSort')
+      ->orderByHeader($header);
 
-	foreach ($result as $row) {			
-		$created = gmdate("d/m/Y H:i:s", $row->created);
-		$rows[] = array($row->email, $created);
-	}
-		
-	$per_page = 20;
-	// Initialize the pager
-	$current_page = pager_default_initialize(count($rows), $per_page);
-	// Split your list into page sized chunks
-	$chunks = array_chunk($rows, $per_page, TRUE);
-	// Show the appropriate items from the list
-	$output = theme('table', array('header' => $header, 'rows' => $chunks[$current_page]));
-	// Show the pager
-	$output .= theme('pager', array('quantity',count($rows)));	
-	return $output;
+  $result = $sql->execute();
+
+  foreach ($result as $row) {
+    $created = gmdate("d/m/Y H:i:s", $row->created);
+    $rows[] = array($row->email, $created);
+  }
+
+  $per_page = 20;
+  // Initialize the pager
+  $current_page = pager_default_initialize(count($rows), $per_page);
+  // Split your list into page sized chunks
+  $chunks = array_chunk($rows, $per_page, TRUE);
+  // Show the appropriate items from the list
+  $output = theme('table', array('header' => $header, 'rows' => $chunks[$current_page], 'sticky' => TRUE, 'empty' => 'No registered mail.'));
+  // Show the pager
+  $output .= theme('pager', array('quantity', count($rows)));
+  return $output;
 }
 
 function page_email_signups_export() {
-	$xls_output = '';
-	$sql = db_select('email_signups')
+  $xls_output = '';
+  $sql = db_select('email_signups')
     ->fields('email_signups', array('email', 'created'))
-		->orderBy('created', 'DESC');
-		
-	$result = $sql->execute();
-	
-  foreach($result as $row){
-		$email = $row->email;
-		$created = gmdate("d/m/Y H:i:s", $row->created);
-		$row_xls_output .= "".$email.""."\t"."".$created.""."\r";
+    ->orderBy('created', 'DESC');
+
+  $result = $sql->execute();
+
+  foreach ($result as $row) {
+    $email = $row->email;
+    $created = gmdate("d/m/Y H:i:s", $row->created);
+    $row_xls_output .= "" . $email . "" . "\t" . "" . $created . "" . "\r";
   } 
 
   $xls_output .= $row_xls_output;
@@ -104,42 +110,42 @@ function email_signups_block_info() {
   return $blocks;
 }
 
-function email_signups_block_view($delta='') {	
-	if (user_access('access email_signups form')) {
-		$block = array(); 
-		switch($delta) {
-			case 'email_signups_form':
-				$block['subject'] = t('Email signups');		
-				$block['content'] = drupal_get_form('email_signups_form');
-			break;
-		}	
-		return $block;
-	}
+function email_signups_block_view($delta='') {
+  if (user_access('access email_signups form')) {
+    $block = array(); 
+    switch ($delta) {
+      case 'email_signups_form':
+        $block['subject'] = t('Email signups');
+        $block['content'] = drupal_get_form('email_signups_form');
+      break;
+    }
+    return $block;
+  }
 }
 
-function email_signups_form($form, &$form_state) { 
-	$form['email'] = array(
-      '#type' => 'textfield',
-      '#title' => t('Email'),
-      '#default_value' => '',
-			'#attributes' => array(
-				'placeholder' => t('Insert your Email'),
-			),
-      '#size' => 25,
-      '#maxlength' => 254,
-      '#required' => TRUE,
+function email_signups_form($form, &$form_state) {
+  $form['email'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Email'),
+    '#default_value' => '',
+    '#attributes' => array(
+      'placeholder' => t('Insert your Email'),
+    ),
+    '#size' => 25,
+    '#maxlength' => 254,
+    '#required' => TRUE,
   );
-	$form['submit'] = array(
-		'#type' => 'submit',
-		'#value' => t('Submit'),
-		'#ajax' => array(
-			'callback' => 'email_signups_ajax_submit',
-			'wrapper' => 'email-signups-form',
-			'method' => 'replace',
-			'effect' => 'fade',
-		),
-	);
-	return $form;
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Submit'),
+    '#ajax' => array(
+      'callback' => 'email_signups_ajax_submit',
+      'wrapper' => 'email-signups-form',
+      'method' => 'replace',
+      'effect' => 'fade',
+    ),
+  );
+  return $form;
 }
 
 function email_signups_ajax_submit($form, &$form_state, &$vars) {
@@ -149,25 +155,25 @@ function email_signups_ajax_submit($form, &$form_state, &$vars) {
   if (form_get_errors()) {
     $form_state['rebuild'] = TRUE;
     return $form;
-  }	
+  }
   // process the form
-	$get_message = drupal_get_messages('status');
-	$message = "<div class=\"messages status\">". $get_message['status'][0] ."</div>";
-	$output = array(
+  $get_message = drupal_get_messages('status');
+  $message = "<div class=\"messages status\">" . $get_message['status'][0] . "</div>";
+  $output = array(
     '#markup' => $message
-  );	
+  );
   // return the confirmation message
   return $output;
 }
 
 function email_signups_form_validate($form, &$form_state) {
-	$email = $form_state['values']['email'];	
-	if(valid_email_address($email) == 0) {
-		form_set_error('email', t('Not a valid email address'));
-	}
-	$sql = db_select('email_signups')
+  $email = $form_state['values']['email'];
+  if (valid_email_address($email) == 0) {
+    form_set_error('email', t('Not a valid email address'));
+  }
+  $sql = db_select('email_signups')
     ->fields('email_signups', array('email'))
-    ->condition('email',$email)
+    ->condition('email', $email)
     ->countQuery()
     ->execute()
     ->fetchField();
@@ -184,7 +190,6 @@ function email_signups_form_submit($form, &$form_state) {
     ))
     ->execute();
 
-	 $email = $form_state['values']['email'];
-   $margs = array('@email' => $email);
-   drupal_set_message(t('Thank you for subscribing, @email!', $margs));
+  $email = $form_state['values']['email'];
+  drupal_set_message(t('Thank you for subscribing, @email!', array('@email' => $email)), 'status');
 }

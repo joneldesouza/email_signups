@@ -1,32 +1,36 @@
 <?php
-
+/**
+ * @file
+ * Install, update, and uninstall functions for the Email Signups module.
+ */
+ 
 function email_signups_schema() {
-  $schema ['email_signups'] = array (
-      'description' => 'The base table for subscriptions.',
-      'fields' => array (
-          'id' => array (
-              'description' => 'The primary identifier for a subscription.',
-              'type' => 'serial',
-              'unsigned' => TRUE,
-              'not null' => TRUE
-          ),
-          'email' => array (
-              'description' => 'The email address of a subscription.',
-              'type' => 'varchar',
-              'length' => 254,
-              'not null' => TRUE
-          ),
-          'created' => array (
-              'description' => 'The Unix timestamp when the subscription was created.',
-              'type' => 'int',
-              'not null' => TRUE,
-              'default' => 0
-          )
+  $schema['email_signups'] = array(
+    'description' => 'The base table for subscriptions.',
+    'fields' => array(
+      'id' => array(
+        'description' => 'The primary identifier for a subscription.',
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE
       ),
-      'unique keys' => array (
-          'email' => array ('email')
+      'email' => array(
+        'description' => 'The email address of a subscription.',
+        'type' => 'varchar',
+        'length' => 254,
+        'not null' => TRUE
       ),
-      'primary key' => array ('id')
+      'created' => array(
+        'description' => 'The Unix timestamp when the subscription was created.',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0
+      )
+    ),
+    'unique keys' => array(
+      'email' => array('email')
+    ),
+    'primary key' => array('id')
   );
   return $schema;
 }
