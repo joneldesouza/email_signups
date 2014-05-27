@@ -14,13 +14,37 @@ function email_signups_permission() {
 }
 
 function email_signups_menu() { 	
-  $items['admin/content/signups'] = array(
+  $items['admin/content/email_signups'] = array(
     'title' => 'List of emails',
     'page callback' => 'page_email_signups',
 		'access arguments' => array('access email_signups page'),
+		'type' => MENU_LOCAL_TASK,
+  );
+	$items['admin/content/email_signups/export'] = array(
+		'title' => 'Export',
+		'page callback' => 'page_email_signups_export',
+		'access arguments' => array('access content'),
 		'type' => MENU_CALLBACK,
-  );	
+  );
 	return $items;
+}
+
+function email_signups_menu_local_tasks_alter(&$data, $router_item, $root_path) {
+	if($root_path == 'admin/content/email_signups') {
+		// Add an action linking to node/add to all pages.
+		$data['actions']['output'][] = array(
+			'#theme' => 'menu_local_task',
+			'#link' => array(
+				'title' => t('Export mailing'),
+				'href' => 'admin/content/email_signups/export',
+				'localized_options' => array(
+					'attributes' => array(
+						'title' => t('Export mailing'),
+					),
+				),
+			),
+		);
+	}
 }
 
 function page_email_signups() {
@@ -29,15 +53,37 @@ function page_email_signups() {
 		array('data' => t('Data')),  
   );	
 	$sql = db_select('email_signups')
-    ->fields('email_signups', array('email', 'created'));		
+    ->fields('email_signups', array('email', 'created'))
+		->orderBy('created', 'DESC');
 		
 	$result = $sql->execute();	
 
 	foreach ($result as $row) {			
-		$created = gmdate("d/m/Y", $row->created);
+		$created = gmdate("d/m/Y H:i:s", $row->created);
 		$rows[] = array($row->email, $created);
 	}
   return theme('table', array('header' => $header, 'rows'=> $rows));
+}
+
+function page_email_signups_export() {
+	$xls_output = '';
+	$sql = db_select('email_signups')
+    ->fields('email_signups', array('email', 'created'))
+		->orderBy('created', 'DESC');
+		
+	$result = $sql->execute();
+	
+  foreach($result as $row){
+		$email = $row->email;
+		$created = gmdate("d/m/Y H:i:s", $row->created);
+		$row_xls_output .= "".$email.""."\t"."".$created.""."\r";
+  } 
+
+  $xls_output .= $row_xls_output;
+  header("Content-Type: application/xls");
+  header("Content-Disposition: attachment; filename=export.xls");
+  print $xls_output;
+  exit; 
 }
 
 function email_signups_block_info() {
@@ -128,38 +174,7 @@ function email_signups_form_submit($form, &$form_state) {
     ))
     ->execute();
 
-	$email = $form_state['values']['email'];
-	$margs = array('@email' => $email);
-	$from = 'noreplay@domain.com';
-	$body[] = t('<p>Hello,</p><p>	The <strong>@email</strong> signed up to receive our news by email.</p><p>Make your <a href="http://www.tartine.com.br/user">login</a> to the content manager to have full access of <a hreef="http://www.tartine.com.br/admin/content/signups">registered in newsletter</a>.', $margs);
-	$to = 'to@domain.com'; // Set this email address - emails will be sent to this email address!
-	$params = array(
-	'body' => $body,
-	'subject' => t('Joined the newsletter'),
-	);
-	if (drupal_mail('email_signups_form', 'some_mail_key', $to, language_default(), $params, $from, TRUE)){
-		drupal_set_message(t('Thank you for subscribing, @email!', $margs));
-	} else {
-		drupal_set_message(t('There was an error subscribing you. Please try again later'));
-		return drupal_render(drupal_get_form('email_signups_form'));
-	}
-
-	// $email = $form_state['values']['email'];
-  // $margs = array('@email' => $email);
-  // drupal_set_message(t('Thank you for subscribing, @email!', $margs));
-	// return drupal_render(drupal_get_form('email_signups_form'));
-}
-
-function email_signups_form_mail($key, &$message, $params) {
-  $headers = array(
-    'MIME-Version' => '1.0',
-    'Content-Type' => 'text/html; charset=UTF-8;',
-    'Content-Transfer-Encoding' => '8Bit',
-    'X-Mailer' => 'Drupal'
-  );
-  foreach ($headers as $key => $value) {
-    $message['headers'][$key] = $value;
-  }
-  $message['subject'] = $params['subject'];
-  $message['body'] = $params['body'];
+	 $email = $form_state['values']['email'];
+   $margs = array('@email' => $email);
+   drupal_set_message(t('Thank you for subscribing, @email!', $margs));
 }
