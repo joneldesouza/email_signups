@@ -15,15 +15,15 @@ function email_signups_permission() {
 
 function email_signups_menu() { 	
   $items['admin/content/email_signups'] = array(
-    'title' => 'List of emails',
+    'title' => t('Mailing'),
     'page callback' => 'page_email_signups',
 		'access arguments' => array('access email_signups page'),
 		'type' => MENU_LOCAL_TASK,
   );
 	$items['admin/content/email_signups/export'] = array(
-		'title' => 'Export',
+		'title' => t('Export mailing'),
 		'page callback' => 'page_email_signups_export',
-		'access arguments' => array('access content'),
+		'access arguments' => array('access email_signups page'),
 		'type' => MENU_CALLBACK,
   );
 	return $items;
@@ -49,8 +49,8 @@ function email_signups_menu_local_tasks_alter(&$data, $router_item, $root_path) 
 
 function page_email_signups() {
   $header = array( 
-    array('data' => t('E-mail')),  
-		array('data' => t('Data')),  
+    array('data' => t('Email')),  
+		array('data' => t('Date')),  
   );	
 	$sql = db_select('email_signups')
     ->fields('email_signups', array('email', 'created'))
@@ -62,7 +62,17 @@ function page_email_signups() {
 		$created = gmdate("d/m/Y H:i:s", $row->created);
 		$rows[] = array($row->email, $created);
 	}
-  return theme('table', array('header' => $header, 'rows'=> $rows));
+		
+	$per_page = 20;
+	// Initialize the pager
+	$current_page = pager_default_initialize(count($rows), $per_page);
+	// Split your list into page sized chunks
+	$chunks = array_chunk($rows, $per_page, TRUE);
+	// Show the appropriate items from the list
+	$output = theme('table', array('header' => $header, 'rows' => $chunks[$current_page]));
+	// Show the pager
+	$output .= theme('pager', array('quantity',count($rows)));	
+	return $output;
 }
 
 function page_email_signups_export() {
