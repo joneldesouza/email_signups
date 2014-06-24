@@ -3,7 +3,10 @@
  * @file
  * The functions for the Email Signups module.
  */
- 
+
+/**
+ * Implements hook_permission().
+ */
 function email_signups_permission() {
   return array(
     'access email_signups page' => array(
@@ -17,6 +20,9 @@ function email_signups_permission() {
   );
 }
 
+/**
+ * Implements hook_menu().
+ */
 function email_signups_menu() {
   $items['admin/content/email_signups'] = array(
     'title' => 'Mailing',
@@ -33,6 +39,9 @@ function email_signups_menu() {
   return $items;
 }
 
+/**
+ * Implements hook_menu_local_tasks_alter(&$data, $router_item, $root_path).
+ */
 function email_signups_menu_local_tasks_alter(&$data, $router_item, $root_path) {
   if ($root_path == 'admin/content/email_signups') {
     // Add an action linking to node/add to all pages.
@@ -51,6 +60,10 @@ function email_signups_menu_local_tasks_alter(&$data, $router_item, $root_path) 
   }
 }
 
+/**
+ * Constructs a page.
+ * The simple page callback, mapped to the path 'admin/content/email_signups'.
+ */
 function page_email_signups() {
   $header = array(
     array('data' => t('Email'), 'field' => 'email', 'sort' => 'asc'),
@@ -60,7 +73,7 @@ function page_email_signups() {
     ->fields('email_signups', array('email', 'created'))
     // ->orderBy('email', 'DESC')
     ->extend('TableSort')
-      ->orderByHeader($header);
+    ->orderByHeader($header);
 
   $result = $sql->execute();
 
@@ -81,6 +94,10 @@ function page_email_signups() {
   return $output;
 }
 
+/**
+ * Constructs a page.
+ * The simple page callback, mapped to the path 'admin/content/email_signups/export'.
+ */
 function page_email_signups_export() {
   $xls_output = '';
   $sql = db_select('email_signups')
@@ -102,6 +119,9 @@ function page_email_signups_export() {
   exit; 
 }
 
+/**
+ * Implements hook_block_info().
+ */
 function email_signups_block_info() {
   $blocks = array();
   $blocks['email_signups_form'] = array(
@@ -110,6 +130,9 @@ function email_signups_block_info() {
   return $blocks;
 }
 
+/**
+ * Implements hook_block_view().
+ */
 function email_signups_block_view($delta='') {
   if (user_access('access email_signups form')) {
     $block = array(); 
@@ -123,6 +146,9 @@ function email_signups_block_view($delta='') {
   }
 }
 
+/**
+ * Implements hook_form($form, &$form_state).
+ */
 function email_signups_form($form, &$form_state) {
   $form['email'] = array(
     '#type' => 'textfield',
@@ -148,6 +174,9 @@ function email_signups_form($form, &$form_state) {
   return $form;
 }
 
+/**
+ * Submit Ajax function for email_signups_form($form, &$form_state, &$vars).
+ */
 function email_signups_ajax_submit($form, &$form_state, &$vars) {
   // validate the form
   drupal_validate_form('email_signups_form', $form, $form_state);
@@ -166,6 +195,9 @@ function email_signups_ajax_submit($form, &$form_state, &$vars) {
   return $output;
 }
 
+/**
+ * Validation function for email_signups_form($form, &$form_state).
+ */
 function email_signups_form_validate($form, &$form_state) {
   $email = $form_state['values']['email'];
   if (valid_email_address($email) == 0) {
@@ -182,6 +214,9 @@ function email_signups_form_validate($form, &$form_state) {
   }
 }
 
+/**
+ * Submit function for email_signups_form($form, &$form_state) in database.
+ */
 function email_signups_form_submit($form, &$form_state) {
   $sql = db_insert('email_signups')
     ->fields(array(
